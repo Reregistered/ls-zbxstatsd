@@ -36,9 +36,9 @@ def getappidlist(zbxhost):
         ### Loop through list "applications"
         for app in configfile.applications:
             ### Check if each application exists on server
-            if zapi.application.exists({"name":app,"host":hostid}):
+            if zapi.application.exists({"name":app,"hostid":hostid}):
                 ### If it exists, get the id and put it in as a string
-                result = zapi.application.get({"filter":{"name":app, "hosts":[{"hostid":hostid}]}})[0]["applicationid"]
+                result = zapi.application.get({"hostids":[{"hostid":hostid}],"filter":{"name":app, "hosts":[{"hostid":hostid}]}})[0]["applicationid"]
                 applist.append(result)
             else:
                 ### The item doesn't exist on the server.  Create it, then put the entry in the dict as a string

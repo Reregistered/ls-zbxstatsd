@@ -14,6 +14,9 @@ Dependencies:
 	- Will work with just zabbix_api.py in same local directory
 * SQLite3 Python module
 	- Most package managers will handle this :)
+* Assorted python modules
+	- argparse
+	- simplejson
  
 
 Features:

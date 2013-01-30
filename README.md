@@ -10,10 +10,10 @@ Dependencies:
 	- https://github.com/pistolero/zbxsend
 	- Will work with just zbxsend.py in same local directory
 * zoop 
-	- https://github.com/untergeek/zoop.git
+	- https://github.com/untergeek/zoop
 	- Object model for Zabbix that uses the Zabbix Python API listed below
 * Zabbix Python API
-	- https://github.com/gescheit/scripts.git
+	- https://github.com/gescheit/scripts
 	- Will work with just zabbix_api.py in same local directory
 * SQLite3 Python module
 	- Most package managers will handle this :)

@@ -20,26 +20,25 @@ __all__ = ['Server']
 
 
 
-
 class CachingZbxItemCreator:
     """Class to contain SQLite3 db methods, which maintain create zabbix items """
     def __init__(self, api):
         """Initiate instance by creating a connection to the db and creating it and the table if they don't already exist"""
         import configfile
         self.api = api
-        self.app_cache = {[]}
+        self.app_cache = { }
+        self.key_cache = {}
         self.applications = configfile.applications
         self.dbfile = configfile.dbfile
         self.formulas = configfile.formulas
         self.history = configfile.history
-        self.init_key_cache()
         self.itemrefresh = configfile.itemrefresh
         self.units = configfile.units
 
         self.con = None
         try:
             self.con = sqlite3.connect(self.dbfile)
-            self.cur = con.cursor()    
+            self.cur = self.con.cursor()    
             try:
                 self.cur.execute('''CREATE TABLE metric_tokens (host text, key_ text, timestamp integer, UNIQUE (host,key_))''')
                 self.con.commit() 
@@ -48,10 +47,11 @@ class CachingZbxItemCreator:
                 # It should mean that it is already there, which is fine
                 pass
         except sqlite3.Error, e:
-            print "Error %s:" % e.args[0]
+            logging.debug("Error:" + e.args[0])
             sys.exit(1)
         # Close connection when done
         self.disconnect()
+        self.init_key_cache()
 
 
     def connect(self):
@@ -59,50 +59,58 @@ class CachingZbxItemCreator:
         self.con = None 
         try:
             self.con = sqlite3.connect(self.dbfile)
-            self.cur = con.cursor()    
+            logging.debug("self.dbfile = " + self.dbfile)
+            self.cur = self.con.cursor()    
         except sqlite3.Error, e:
-            print "Error %s:" % e.args[0]
+            logging.debug("Error:" + e.args[0])
             sys.exit(1)
 
 
     def disconnect(self):
         """Close db connection if one exists"""
         if self.con:
-            self.conf.close()
+            self.con.close()
 
 
     def init_key_cache(self):
         self.connect()
+        self.cur.execute('''select * from metric_tokens''')
         mydict = {}
         try:
-            for row in self.con.execute('''select * from metric_tokens'''):
-                mydict[row[0]]["key_"] = row[1]
-                mydict[row[0]]["t"] = row[2]
+            for row in self.cur.fetchall():
+                if not mydict.has_key(row[0]):
+                    mydict[row[0]] = {}
+                mydict[row[0]][row[1]] = row[2]
         except:
             # There's no reason to complain if it fails
             # If there are no results, then we just create an empty dict
             pass
-        self.key_cache = mydict
+        self.key_cache.update(mydict)
+        self.disconnect()
+        
 
 
     def app_cached(self, host):
         """Return True or False regarding host's existing in the cache"""
-        return False if host not in self.app_cache else return True
-#        if host not in self.app_cache:
-#            logging.debug(host + " not in self.app_cache")
-#            return False
-#        else:
-#            return True
+        #logging.debug("app_cache on next line:")
+        #logging.debug(self.app_cache)
+        if host not in self.app_cache:
+            logging.debug(host + " not in self.app_cache")
+            return False
+        else:
+            return True
 
 
     def key_cached(self, key_, host):
         """Return True or False regarding key_'s existing in the cache"""
-        return False if key_ not in self.key_cache[host] else return True
-#        if key_ not in self.key_cache[host]:
-#            logging.debug("Key not in self.key_cache")
-#            return False
-#        else:
-#            return True
+        try: 
+            if key_ in self.key_cache[host]:
+                return True
+            else:
+                return False
+        except:
+            return False
+
 
     def get_timestamp(self, key_, host):
         """Fetch timestamp from row with matching key_ & host"""
@@ -111,35 +119,35 @@ class CachingZbxItemCreator:
         try:
             self.cur.execute('select timestamp from metric_tokens where host=? AND key_=?', getvalues)
             retval = self.cur.fetchone()[0]
-#            logging.debug('Timestamp of row with matching host, key = ' + str(result[0]))
         except sqlite3.Error, e:
-            print "Error %s:" % e.args[0]
+            logging.debug("Error:" + e.args[0])
             retval = False
 #        self.disconnect()
         return retval
+
 
     def insert(self, setvalues):
         """Execute insert statement"""
 #        self.connect()
         try:
-            self.cur.execute('INSERT into metric_tokens(host,key_,timestamp) VALUES (?,?,?)', setvalues)
+            self.cur.execute('INSERT into metric_tokens(host,key_,timestamp) VALUES (:myhost, :mykey_, :myts)', setvalues)
             self.con.commit()
             retval = True
         except sqlite3.Error, e:
-            print "Error %s:" % e.args[0]
+            logging.debug("Error:" + e.args[0])
             retval = False
 #        self.disconnect()
         return retval
         
     def update(self, setvalues):
-        """Execute insert statement"""
+        """Update timestamp"""
 #        self.connect()
         try:
-            self.cur.execute('UPDATE metric_tokens SET host=?, key_=?, timestamp=?) VALUES (?,?,?)', setvalues)
+            self.cur.execute('UPDATE metric_tokens SET timestamp ==:myts where host ==:myhost and key_ ==:mykey_', setvalues)
             self.con.commit()
             retval = True
         except sqlite3.Error, e:
-            print "Error %s:" % e.args[0]
+            logging.debug("Failed to update database.  Error: " + e.args[0])
             retval = False
 #        self.disconnect()
         return retval
@@ -147,19 +155,18 @@ class CachingZbxItemCreator:
     def getappidlist(self, hostapi):
         """Get a list of appids from the configfile and validate them agaist the Zabbix API.  Create if not existent""" 
         if not self.app_cached():
-#            logging.debug(host + " not in zbx_appid_dict")
             ### Loop through list "applications"
             applist = []
             for app in self.applications:
                 ### Check if each application exists on server
-                if hostapi.appexists(app)
+                if hostapi.appexists(app):
                     ### If it exists, get the id and put it in as a string
                     applist.append(hostapi.getappid(app))
                 else:
                     ### The item doesn't exist on the server.  Create it, then put the entry in the dict as a string
                     applist.append(hostapi.createapp(app))
-            ### Append the list to the cache
-            self.app_cache[host].append(applist)
+            ### The [host] index gets the applist
+            self.app_cache[host] = applist
     
 
     def set_value_type(self, key_, value):
@@ -170,7 +177,7 @@ class CachingZbxItemCreator:
             value_type = 0
         else:
 #            logging.error("Item type not integer or float type")
-            print "Fail: Formula not integer or float type")
+            print "Fail: Formula not integer or float type"
             sys.exit(2)
 
         ### Override for unit/formula modifiers
@@ -196,24 +203,27 @@ class CachingZbxItemCreator:
                         value_type = 3
                     except:
 #                        logging.error("Formula not integer or float type")
-                        print "Fail: Formula not integer or float type")
+                        print "Fail: Formula not integer or float type"
                         sys.exit(2)
         return value_type
 
 
-    def zbxitemcheck(host, key_, value):
+    def zbxitemcheck(self, host, key_, value):
         
         zhost = self.api.host() 
+        zhost.get(host=host)
         if not zhost.exists():
-            print "Error! Hostname " + host + " does not exist"
+            errormsg = "Error! Hostname " + host + " does not exist"
+            print errormsg
+            logging.debug(errormsg)
             sys.exit(2)
 
-        zhost.get(host=host)
         zitem = self.api.item()
         zitem["key_"] = key_
         zitem["hostid"] = zhost["hostid"]
         if zitem.exists():
             # This is a good thing!  We don't have to create it!
+            #logging.debug("Item with key " + key_ + " exists!")
             pass
         else: 
             zitem["value_type"] = self.set_value_type(key_, value)
@@ -240,30 +250,33 @@ class CachingZbxItemCreator:
         retval = True
         now = int(time.time())
         for m in metrics:
-            setvalues = (m.host, m.key, now)
+            setvalues = { "myhost" : m.host, "mykey_" : m.key, "myts" : now }
             ### Do the check to see if the key is cached
             ### If it isn't, then do the insert
             if not self.key_cached(m.key, m.host):
-#                logging.debug("Key not in self.key_cache")
+                logging.debug("m.key: " + m.key + " not in self.key_cache")
                 ### Create item in zabbix
-                zbxitemcheck(m.host, m.key, m.value)
+                self.zbxitemcheck(m.host, m.key, m.value)
                 retval = self.insert(setvalues)
-            elif self.key_cache[m.host]["t"] < (now - self.itemrefresh):
+            elif self.key_cache[m.host][m.key] < (now - self.itemrefresh):
                 ### The timestamp is too old, so we'll update.
                 ### Verify item in zabbix, if fails, recreate
-                zbxitemcheck(m.host, m.key, m.value)
+                self.zbxitemcheck(m.host, m.key, m.value)
                 retval = self.update(setvalues)
                 # Update caches
-#                logging.debug('Already in database.  Ignoring.') 
+                logging.debug('Already in database.  Ignoring.') 
             else:
                 # It's cached, but the timestamp is new enough to skip
-#                logging.debug("Timestamp to new for another db write for " + m.host + ":" + m.key + " ...")
+                logging.debug("Timestamp too new for another db write for " + m.host + ":" + m.key + " ...")
                 pass
         self.disconnect()
         if retval is True:
-            # In either case, if we were successful, update the cache
-            self.key_cache[m.host]["key_"] = m.key
-            self.key_cache[m.host]["t"] = now
+            try:
+                # In either case, if we were successful, update the cache
+                self.key_cache[m.host][m.key] = now
+            except:
+                # Variable m may not yet exist
+                pass
         return retval
 
     
@@ -277,8 +290,7 @@ def _clean_key(k):
     )
 
 class Server(object):
-
-    def __init__(self, pct_threshold=90, debug=False, zabbix_host='localhost', zabbix_port=10051, flush_interval=10000):
+    def __init__(self, pct_threshold=90, debug=False, zabbix_host='localhost', zabbix_port=10051, flush_interval=10000, api=None):
         import configfile
         self.buf = 1024
         self.flush_interval = flush_interval
@@ -286,12 +298,14 @@ class Server(object):
         self.zabbix_host = zabbix_host
         self.zabbix_port = zabbix_port
         self.debug = debug
-        self.api = zoop(url=configfile.url, username=configfile.username, password=configfile.password)
         self.timestamp = int(time.time())
         self.counters = {}
         self.timers = {}
         self.flusher = 0
-
+        self.api = api
+        if not self.api:
+            print "api not defined.  Exiting"
+            sys.exit(2)
 
     def process(self, data):
         ### Remove the namespace from the data stream.  We don't care in Zabbix.
@@ -389,7 +403,7 @@ class Server(object):
         if (ts - self.timestamp) > 1800:
             # Guarantee we can still use self.api, if not, use the connect method
             version = self.api.version()
-            if version = 0:
+            if version == 0:
                 self.api.connect()
             else:
                 # If we get a version, we're good.
@@ -436,10 +450,12 @@ class Server(object):
 
 
 class ServerDaemon(Daemon):
+    import configfile
+    api = zoop(url=configfile.url, username=configfile.username, password=configfile.password)
     def run(self, options):
         if setproctitle:
-            setproctitle('zbxmetrics')
-        server = Server(pct_threshold=options.pct, debug=options.debug, flush_interval=options.flush_interval)
+            setproctitle('ls-zbxstatsd')
+        server = Server(pct_threshold=options.pct, debug=options.debug, flush_interval=options.flush_interval, api=ServerDaemon.api)
         server.serve(options.name, options.port, options.zabbix_host,
                      options.zabbix_port)
 
@@ -457,7 +473,7 @@ def main():
     parser.add_argument('-f', '--flush-interval', dest='flush_interval', help='interval between flushes', type=int, default=10000)
     parser.add_argument('-t', '--pct', dest='pct', help='stats pct threshold', type=int, default=90)
     parser.add_argument('-D', '--daemon', dest='daemonize', action='store_true', help='daemonize', default=False)
-    parser.add_argument('--pidfile', dest='pidfile', action='store', help='pid file', default='/tmp/zbxmetrics.pid')
+    parser.add_argument('--pidfile', dest='pidfile', action='store', help='pid file', default='/tmp/ls-zbxstatsd.pid')
     parser.add_argument('--restart', dest='restart', action='store_true', help='restart a running daemon', default=False)
     parser.add_argument('--stop', dest='stop', action='store_true', help='stop a running daemon', default=False)
     options = parser.parse_args(sys.argv[1:])
@@ -473,7 +489,7 @@ def main():
         daemon.stop()
     else:
         daemon.run(options)
-        
+
 
 if __name__ == '__main__':
     main()

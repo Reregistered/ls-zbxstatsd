@@ -4,10 +4,14 @@ username = "username"
 password = "password"
 
 ### Host/Key pairing database
-dbfile = '/tmp/zbxstatsd.db'
+dbfile = '/tmp/ls-zbxstatsd.db'
 
 ### Zabbix Item Constants
 applications = [ "Log Metrics" ]
 history = 30
 units = { "apache.bytes" : "B", "apache.duration" : "s" }
 formulas = { "apache.duration" : "0.000001" }
+
+### Program Constants
+# itemrefresh set to 1 day (86400 seconds).  Change to be more or less frequent.
+itemrefresh = 86400

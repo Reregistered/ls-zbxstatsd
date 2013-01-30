@@ -9,6 +9,9 @@ Dependencies:
 	- PyPi: http://pypi.python.org/pypi/zbxsend/0.1.4
 	- https://github.com/pistolero/zbxsend
 	- Will work with just zbxsend.py in same local directory
+* zoop 
+	- https://github.com/untergeek/zoop.git
+	- Object model for Zabbix that uses the Zabbix Python API listed below
 * Zabbix Python API
 	- https://github.com/gescheit/scripts.git
 	- Will work with just zabbix_api.py in same local directory

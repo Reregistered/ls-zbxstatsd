@@ -1,4 +1,6 @@
 *.pyc
+zabbix_api.py
+ZabbixAPIClasses.py
 configfile.py
 build
 dist

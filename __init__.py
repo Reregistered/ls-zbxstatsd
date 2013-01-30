@@ -1,2 +1,2 @@
-from zbxstatsd.client import Client
-from zbxstatsd.server import Server 
+from ls-zbxstatsd.client import Client
+from ls-zbxstatsd.server import Server 

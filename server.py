@@ -154,7 +154,7 @@ class CachingZbxItemCreator:
 
     def getappidlist(self, hostapi):
         """Get a list of appids from the configfile and validate them agaist the Zabbix API.  Create if not existent""" 
-        if not self.app_cached():
+        if not self.app_cached(hostapi["hostid"]):
             ### Loop through list "applications"
             applist = []
             for app in self.applications:
@@ -166,17 +166,25 @@ class CachingZbxItemCreator:
                     ### The item doesn't exist on the server.  Create it, then put the entry in the dict as a string
                     applist.append(hostapi.createapp(app))
             ### The [host] index gets the applist
-            self.app_cache[host] = applist
-    
+            self.app_cache[hostapi["host"]] = applist
 
-    def set_value_type(self, key_, value):
+    def recast(self, value):
+        """Recast strings as float or int"""
+        try:
+            ret = int(value)
+        except ValueError:
+            ret = float(value)
+        return ret  
+
+    def set_value_type(self, itemObject, key_, value):
         """Map value type from provided value"""
+        value = self.recast(value)
         if type(value) == type(int()):
             value_type = 3
         elif type(value) == type(float()):
             value_type = 0
         else:
-#            logging.error("Item type not integer or float type")
+            logging.error("Item type not integer or float type")
             print "Fail: Formula not integer or float type"
             sys.exit(2)
 
@@ -193,18 +201,16 @@ class CachingZbxItemCreator:
             if keytrunk in self.formulas:
                 itemObject['multiplier'] = 1
                 itemObject['formula'] = self.formulas[keytrunk]
+                logging.error("multiplier = " + str(itemObject['multiplier']) + " and formula = " + str(itemObject['formula']))
                 ### Must be prepared to override the value_type if we're applying a float multiplier
-                try:
-                    value = int(self.formulas[keytrunk])
+                formulavalue = self.recast(self.formulas[keytrunk])
+                if type(formulavalue) == type(int()):
                     value_type = 3
-                except:
-                    try:
-                        value = int(self.formulas[keytrunk])
-                        value_type = 3
-                    except:
-#                        logging.error("Formula not integer or float type")
-                        print "Fail: Formula not integer or float type"
-                        sys.exit(2)
+                elif type(formulavalue) == type(float()):
+                    value_type = 0
+                else:
+                    logging.error("Formula not integer or float type")
+                    sys.exit(2)
         return value_type
 
 
@@ -226,7 +232,7 @@ class CachingZbxItemCreator:
             #logging.debug("Item with key " + key_ + " exists!")
             pass
         else: 
-            zitem["value_type"] = self.set_value_type(key_, value)
+            zitem["value_type"] = self.set_value_type(zitem, key_, value)
     
             ziface = self.api.hostinterface()
             ziface.get(hostid=zhost["hostid"])
@@ -236,7 +242,7 @@ class CachingZbxItemCreator:
             zitem["delay"] = 0
             zitem["name"] = "Metric " + key_
             # getappidlist will populate self.app_cache[host]
-            getappidlist(zhost)
+            self.getappidlist(zhost)
             zitem["applications"] = self.app_cache[host]
             ### type 2 is Zabbix trapper type
             zitem["type"] = 2

@@ -69,7 +69,8 @@ Usage:
 
 Note: The default value for PORT is 8126, rather than the normal statsd value of 8125.  
 
-```$ python server.py --help
+```
+$ python server.py --help
 usage: server.py [-h] [-d] [-n NAME] [-p PORT] [--zabbix-port ZABBIX_PORT]
                  [--zabbix-host ZABBIX_HOST] [-l LOG_FILE] [-f FLUSH_INTERVAL]
                  [-t PCT] [-D] [--pidfile PIDFILE] [--restart] [--stop]
@@ -118,7 +119,8 @@ DOUBLE SEMICOLONS.  'nuff said.
 The Zabbix key names will be the fields you specify here, e.g. `apache.bytes`, `apache.status[200]` (or any other valid HTTP response code), `apache.duration`
 
 Example:
-``` statsd {
+```
+ statsd {
     type => "apache"
     count => [ "apache.bytes", "%{bytes}" ]
     increment => "apache.status[%{status}]"
@@ -134,7 +136,8 @@ ls-zbxstatsd Configuration:
 
 `configfile.py` is imported like a standard python module, rendering all of its values as regular variables in the context they were imported into.
 
-``` ### Zabbix API
+```
+### Zabbix API
 url = "http://www.example.com/zabbix"
 username = "username"
 password = "password"

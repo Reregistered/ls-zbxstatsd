@@ -6,6 +6,7 @@ import types
 import logging
 import sqlite3
 from zoop import *
+import configfile
 from zbxsend import Metric, send_to_zabbix 
 
 try:
@@ -24,7 +25,7 @@ class CachingZbxItemCreator:
     """Class to contain SQLite3 db methods, which maintain create zabbix items """
     def __init__(self, api):
         """Initiate instance by creating a connection to the db and creating it and the table if they don't already exist"""
-        import configfile
+        #import configfile
         self.api = api
         self.app_cache = { }
         self.key_cache = {}
@@ -256,25 +257,26 @@ class CachingZbxItemCreator:
         retval = True
         now = int(time.time())
         for m in metrics:
-            setvalues = { "myhost" : m.host, "mykey_" : m.key, "myts" : now }
-            ### Do the check to see if the key is cached
-            ### If it isn't, then do the insert
-            if not self.key_cached(m.key, m.host):
-                logging.debug("m.key: " + m.key + " not in self.key_cache")
-                ### Create item in zabbix
-                self.zbxitemcheck(m.host, m.key, m.value)
-                retval = self.insert(setvalues)
-            elif self.key_cache[m.host][m.key] < (now - self.itemrefresh):
-                ### The timestamp is too old, so we'll update.
-                ### Verify item in zabbix, if fails, recreate
-                self.zbxitemcheck(m.host, m.key, m.value)
-                retval = self.update(setvalues)
-                # Update caches
-                logging.debug('Already in database.  Ignoring.') 
-            else:
-                # It's cached, but the timestamp is new enough to skip
-                logging.debug("Timestamp too new for another db write for " + m.host + ":" + m.key + " ...")
-                pass
+            if not 'zabbix.host' in m.host:
+                setvalues = { "myhost" : m.host, "mykey_" : m.key, "myts" : now }
+                ### Do the check to see if the key is cached
+                ### If it isn't, then do the insert
+                if not self.key_cached(m.key, m.host):
+                    logging.debug("m.key: " + m.key + " not in self.key_cache")
+                    ### Create item in zabbix
+                    self.zbxitemcheck(m.host, m.key, m.value)
+                    retval = self.insert(setvalues)
+                elif self.key_cache[m.host][m.key] < (now - self.itemrefresh):
+                    ### The timestamp is too old, so we'll update.
+                    ### Verify item in zabbix, if fails, recreate
+                    self.zbxitemcheck(m.host, m.key, m.value)
+                    retval = self.update(setvalues)
+                    # Update caches
+                    logging.debug('Already in database.  Ignoring.') 
+                else:
+                    # It's cached, but the timestamp is new enough to skip
+                    logging.debug("Timestamp too new for another db write for " + m.host + ":" + m.key + " ...")
+                    pass
         self.disconnect()
         if retval is True:
             try:
@@ -297,7 +299,7 @@ def _clean_key(k):
 
 class Server(object):
     def __init__(self, pct_threshold=90, debug=False, zabbix_host='localhost', zabbix_port=10051, flush_interval=10000, api=None):
-        import configfile
+        #import configfile
         self.buf = 1024
         self.flush_interval = flush_interval
         self.pct_threshold = pct_threshold
@@ -362,11 +364,12 @@ class Server(object):
             v = float(v) / (self.flush_interval / 1000)
             
             host, key = k.split(':',1)
-            
-            metrics.append(Metric(host, key, str(v), ts))
+            # Catch the case where an improper host is passed.
+            if not 'zabbix.host' in host:
+                metrics.append(Metric(host, key, str(v), ts))
 
-            self.counters[k] = 0
-            stats += 1
+                self.counters[k] = 0
+                stats += 1
 
         for k, v in self.timers.items():
             if len(v) > 0:
@@ -393,16 +396,18 @@ class Server(object):
                 self.timers[k] = []
 
                 host, key = k.split(':', 1)
-                metrics.extend([
-                    Metric(host, key + '[mean]', mean, ts),
-                    Metric(host, key + '[upper]', max, ts),
-                    Metric(host, key + '[lower]', min, ts),
-                    Metric(host, key + '[count]', count, ts),
-                    Metric(host, key + '[upper_%s]' % self.pct_threshold, max_threshold, ts),
-                    Metric(host, key + '[median]', median, ts),
-                ])
-
-                stats += 1
+                # Catch the case where an improper host is passed.
+                if not 'zabbix.host' in host:
+                    metrics.extend([
+                        Metric(host, key + '[mean]', mean, ts),
+                        Metric(host, key + '[upper]', max, ts),
+                        Metric(host, key + '[lower]', min, ts),
+                        Metric(host, key + '[count]', count, ts),
+                        Metric(host, key + '[upper_%s]' % self.pct_threshold, max_threshold, ts),
+                        Metric(host, key + '[median]', median, ts),
+                    ])
+    
+                    stats += 1
 
 #        stat_string += 'statsd.numStats %s %d' % (stats, ts)
 
@@ -456,8 +461,8 @@ class Server(object):
 
 
 class ServerDaemon(Daemon):
-    import configfile
-    api = zoop(url=configfile.url, username=configfile.username, password=configfile.password)
+    #import configfile
+    api = zoop(url=configfile.url, username=configfile.username, password=configfile.password, logLevel="DEBUG", logfile=configfile.logfile)
     def run(self, options):
         if setproctitle:
             setproctitle('ls-zbxstatsd')
@@ -475,7 +480,7 @@ def main():
     parser.add_argument('-p', '--port', dest='port', help='port to run on', type=int, default=8126)
     parser.add_argument('--zabbix-port', dest='zabbix_port', help='port to connect to zabbix on', type=int, default=10051)
     parser.add_argument('--zabbix-host', dest='zabbix_host', help='host to connect to zabbix on', type=str, default='localhost')
-    parser.add_argument('-l', dest='log_file', help='log file', type=str, default=None)
+    parser.add_argument('-l', dest='log_file', help='log file', type=str, default=configfile.logfile)
     parser.add_argument('-f', '--flush-interval', dest='flush_interval', help='interval between flushes', type=int, default=10000)
     parser.add_argument('-t', '--pct', dest='pct', help='stats pct threshold', type=int, default=90)
     parser.add_argument('-D', '--daemon', dest='daemonize', action='store_true', help='daemonize', default=False)

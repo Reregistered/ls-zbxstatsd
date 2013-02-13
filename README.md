@@ -94,11 +94,15 @@ optional arguments:
   --stop                stop a running daemon
 ```
 
-Typical launch command (if you've put the options in configfile.py):
-`$ python server.py -D`
+#### Typical launch command (if you've put the options in configfile.py):
+```
+$ python server.py -D
+```
 
-Launch command (with command-line overrides):
-`$ python server.py -D -n ls-zbxstatsd.example.com --zabbix-host zabbix-server.example.com -l /path/to/logfile.log`
+#### Launch command (with command-line overrides):
+```
+$ python server.py -D -n ls-zbxstatsd.example.com --zabbix-host zabbix-server.example.com -l /path/to/logfile.log
+```
 
 
 
@@ -114,13 +118,13 @@ Instructions:
 sender: In this example a pre-existing field called `zabbix_host` is used.  This can be a hard-coded string or a field value.  In any case, it MUST be an existing host in Zabbix, and it MUST have the double semicolon post-pended.
 The reason for this is that period delimiting doesn't work if your Zabbix host names are FQDNs.  How will the script know?  Double semicolons.  Miss this detail and the script will not work.
 
-DOUBLE SEMICOLONS.  'nuff said.
+**DOUBLE SEMICOLONS.**  'nuff said.
 
 The Zabbix key names will be the fields you specify here, e.g. `apache.bytes`, `apache.status[200]` (or any other valid HTTP response code), `apache.duration`
 
 Example:
 ```
- statsd {
+  statsd {
     type => "apache"
     count => [ "apache.bytes", "%{bytes}" ]
     increment => "apache.status[%{status}]"

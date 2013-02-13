@@ -3,7 +3,7 @@ Introduction
 
 ls-zbxstatsd is a fork of pistolero's zbx-statsd, which is a clone of Etsy's statsd and Steve Ivy's py-statsd.  It is designed to accept statsd output from logstash and output to Zabbix for stats collection and graphing.
 
-Dependencies:
+#### Dependencies:
 
 * zbxsend
 	- PyPi: http://pypi.python.org/pypi/zbxsend/0.1.4
@@ -111,18 +111,18 @@ Logstash Configuration:
 
 Logstash statsd information can be found here: http://logstash.net/docs/1.1.9/outputs/statsd
 
-Note: Do not alter the namespace!  This script expects the default "logstash."  The code could be hacked to be namespace independent, but isn't at present.
+**Note: Do not alter the namespace!**  This script expects the default "logstash."  The code could be hacked to be namespace independent, but isn't at present.
 
-Instructions:
+#### Instructions:
 
-sender: In this example a pre-existing field called `zabbix_host` is used.  This can be a hard-coded string or a field value.  In any case, it MUST be an existing host in Zabbix, and it MUST have the double semicolon post-pended.
+**sender:** In this example a pre-existing field called `zabbix_host` is used.  This can be a hard-coded string or a field value.  In any case, it MUST be an existing host in Zabbix, and it MUST have the double semicolon post-pended.
 The reason for this is that period delimiting doesn't work if your Zabbix host names are FQDNs.  How will the script know?  Double semicolons.  Miss this detail and the script will not work.
 
 **DOUBLE SEMICOLONS.**  'nuff said.
 
 The Zabbix key names will be the fields you specify here, e.g. `apache.bytes`, `apache.status[200]` (or any other valid HTTP response code), `apache.duration`
 
-Example:
+#### Example:
 ```
   statsd {
     type => "apache"
@@ -168,6 +168,12 @@ logfile = '/tmp/ls-zbxstatsd.log'
 pidfile = '/tmp/ls-zbxstatsd.pid'
 ```
 
-The units and formulas dictionaries allow for per zabbix-key item differentiation, e.g. duration is in microseconds in the apache output, so I need to set the multiplier to 0.000001 and set units to "s" for seconds.  Have more keys?  Add them here.
+`itemrefresh` is the time in seconds between checks back to Zabbix to verify the item exists.  Defaults to 1 day (86400 seconds).  Can be increased here as desired.
+
+`zabbix_host` is actually the Zabbix server where the statistics will be sent via the zabbix_sender protocol.
+
+`daemon_host` sets the IP on which ls-zbxstatsd will listen for statsd traffic, and `daemon_port` the port.
+
+The `units` and `formulas` dictionaries allow for per zabbix-key item differentiation, e.g. duration is in microseconds in the apache output, so I need to set the multiplier to `0.000001` and set `units` to `s` for seconds.  Have more keys?  Add them here.
 
 `flush_interval` is in milliseconds, so `10000` = 10 seconds.

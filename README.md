@@ -1,5 +1,5 @@
 Introduction
-------------
+============
 
 ls-zbxstatsd is a fork of pistolero's zbx-statsd, which is a clone of Etsy's statsd and Steve Ivy's py-statsd.  It is designed to accept statsd output from logstash and output to Zabbix for stats collection and graphing.
 
@@ -44,6 +44,7 @@ Features:
 	- API login credentials
 	- SQLite3 Host/Key pairing database file path.  This prevents attempted re-add of already created items on startup.
 	- Zabbix application name
+	- ls-zbxstatsd commandline options (so you don't have to!)
 
 * Works with Zabbix proxy for stats collection
 	- May need to wait for proxy to pick up new item configuration, based on zabbix_proxy.conf settings, before new values will show up.
@@ -66,9 +67,9 @@ Attribution:
 Usage:
 ------
 
-Note: The default value for PORT is 8126, rather than the normal statsd value of 8125.
+Note: The default value for PORT is 8126, rather than the normal statsd value of 8125.  
 
-$ python server.py --help
+```$ python server.py --help
 usage: server.py [-h] [-d] [-n NAME] [-p PORT] [--zabbix-port ZABBIX_PORT]
                  [--zabbix-host ZABBIX_HOST] [-l LOG_FILE] [-f FLUSH_INTERVAL]
                  [-t PCT] [-D] [--pidfile PIDFILE] [--restart] [--stop]
@@ -90,30 +91,34 @@ optional arguments:
   --pidfile PIDFILE     pid file
   --restart             restart a running daemon
   --stop                stop a running daemon
+```
 
-Typical launch command:
-$ python server.py -D -n ls-zbxstatsd.example.com --zabbix-host zabbix-server.example.com -l /path/to/logfile.log
+Typical launch command (if you've put the options in configfile.py):
+`$ python server.py -D`
+
+Launch command (with command-line overrides):
+`$ python server.py -D -n ls-zbxstatsd.example.com --zabbix-host zabbix-server.example.com -l /path/to/logfile.log`
 
 
 
 Logstash Configuration:
 -----------------------
 
-Logstash statsd information can be found here: http://logstash.net/docs/1.1.5/outputs/statsd
+Logstash statsd information can be found here: http://logstash.net/docs/1.1.9/outputs/statsd
 
 Note: Do not alter the namespace!  This script expects the default "logstash."  The code could be hacked to be namespace independent, but isn't at present.
 
 Instructions:
 
-sender: In this example a pre-existing field called "zabbix_host" is used.  This can be a hard-coded string or a field value.  In any case, it MUST be an existing host in Zabbix, and it MUST have the double semicolon post-pended.
+sender: In this example a pre-existing field called `zabbix_host` is used.  This can be a hard-coded string or a field value.  In any case, it MUST be an existing host in Zabbix, and it MUST have the double semicolon post-pended.
 The reason for this is that period delimiting doesn't work if your Zabbix host names are FQDNs.  How will the script know?  Double semicolons.  Miss this detail and the script will not work.
 
 DOUBLE SEMICOLONS.  'nuff said.
 
-The Zabbix key names will be the fields you specify here, e.g. "apache.bytes", "apache.status[200]" (or any other valid HTTP response code), "apache.duration"
+The Zabbix key names will be the fields you specify here, e.g. `apache.bytes`, `apache.status[200]` (or any other valid HTTP response code), `apache.duration`
 
 Example:
-  statsd {
+``` statsd {
     type => "apache"
     count => [ "apache.bytes", "%{bytes}" ]
     increment => "apache.status[%{status}]"
@@ -122,14 +127,14 @@ Example:
     host => "statsd.example.com" # The host where ls-zbxstatsd will be running
     port => 8126
   }
-
+```
 
 ls-zbxstatsd Configuration:
 ---------------------------
 
-configfile.py is imported like a standard python module, rendering all of its values as regular variables in the context they were imported into.
+`configfile.py` is imported like a standard python module, rendering all of its values as regular variables in the context they were imported into.
 
-### Zabbix API
+``` ### Zabbix API
 url = "http://www.example.com/zabbix"
 username = "username"
 password = "password"
@@ -143,4 +148,19 @@ history = 30
 units = { "apache.bytes" : "B", "apache.duration" : "s" }
 formulas = { "apache.duration" : "0.000001" }
 
+### Program Constants
+itemrefresh = 86400
+zabbix_host = "localhost"
+zabbix_port = 10051
+daemon_host = "localhost"
+daemon_port = 8126
+flush_interval = 10000
+percentage = 90
+debug = False
+logfile = '/tmp/ls-zbxstatsd.log'
+pidfile = '/tmp/ls-zbxstatsd.pid'
+```
+
 The units and formulas dictionaries allow for per zabbix-key item differentiation, e.g. duration is in microseconds in the apache output, so I need to set the multiplier to 0.000001 and set units to "s" for seconds.  Have more keys?  Add them here.
+
+`flush_interval` is in milliseconds, so `10000` = 10 seconds.

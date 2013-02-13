@@ -15,5 +15,12 @@ formulas = { "apache.duration" : "0.000001" }
 ### Program Constants
 # itemrefresh set to 1 day (86400 seconds).  Change to be more or less frequent.
 itemrefresh = 86400
+zabbix_host = "localhost"
+zabbix_port = 10051
+daemon_host = "localhost"
+daemon_port = 8126
+flush_interval = 10000
+percentage = 90
+debug = True
 logfile = '/tmp/ls-zbxstatsd.log'
 pidfile = '/tmp/ls-zbxstatsd.pid'

@@ -230,9 +230,10 @@ class CachingZbxItemCreator:
         zitem["hostid"] = zhost["hostid"]
         if zitem.exists():
             # This is a good thing!  We don't have to create it!
-            #logging.debug("Item with key " + key_ + " exists!")
+            logging.debug("Item with key " + key_ + " exists!")
             pass
         else: 
+            logging.debug("Item with key " + key_ + " does not exist!")
             zitem["value_type"] = self.set_value_type(zitem, key_, value)
     
             ziface = self.api.hostinterface()

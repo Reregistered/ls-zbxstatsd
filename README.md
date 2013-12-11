@@ -17,6 +17,11 @@ ls-zbxstatsd is a fork of pistolero's zbx-statsd, which is a clone of Etsy's sta
 	- Will work with just zabbix_api.py in same local directory
 * SQLite3 Python module
 	- Most package managers will handle this :)
+
+*zookeeper
+        - http://zookeeper.apache.org/doc/r3.1.2/zookeeperStarted.html
+        - Python Bingings - "Using C extensions" - http://wiki.unixh4cks.com/index.php/Connecting_python_to_Zookeeper
+
 * Assorted python modules
 	- argparse
 	- simplejson
